@@ -14,7 +14,7 @@
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-			background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%);
+            background: linear-gradient(135deg, #2d7a4f 0%, #52b788 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -29,7 +29,7 @@
         }
         
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #2d7a4f 0%, #40916c 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -70,8 +70,8 @@
         
         .tab.active {
             background: white;
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
+            color: #2d7a4f;
+            border-bottom: 3px solid #2d7a4f;
         }
         
         .tab-content {
@@ -102,7 +102,7 @@
         }
         
         th {
-			background: linear-gradient(135deg, #a8e6cf 0%, #dcedc1 100%);
+            background: linear-gradient(135deg, #2d7a4f 0%, #52b788 100%);
             color: white;
             padding: 15px;
             text-align: left;
@@ -133,7 +133,7 @@
         
         .spinner {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border-top: 3px solid #2d7a4f;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -158,7 +158,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📊 Google Sheets 資料查看器</h1>
+            <h1>📊 現場設備 資料查看器</h1>
             <div class="update-info">
                 最後更新: <span id="lastUpdate">載入中...</span> | 每 30 秒自動更新
             </div>
@@ -195,9 +195,9 @@
     <script>
         const SPREADSHEET_ID = '14QzHiUuTLZItsnDwETv2d2ax8_quBb4c3nPkGi2QZa0';
         const SHEET_GIDS = {
-            boot_info: 0,  // 預設第一個 sheet
+            boot_info: 0,
             connect_info: 277291491,
-            mqtt_info: 1607453539      // 第三個 sheet
+            mqtt_info: 1607453539
         };
         
         let currentTab = 'boot_info';
@@ -234,14 +234,12 @@
             
             let html = '<div class="table-container"><table>';
             
-            // 標題列
             html += '<thead><tr>';
             headers.forEach(header => {
                 html += `<th>${header}</th>`;
             });
             html += '</tr></thead>';
             
-            // 資料列
             html += '<tbody>';
             rows.forEach(row => {
                 html += '<tr>';
@@ -257,7 +255,7 @@
         
         async function loadSheetData(sheetName, gid) {
             const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${gid}`;
-			
+            
             try {
                 const response = await fetch(url);
                 
@@ -293,10 +291,8 @@
             });
         }
         
-        // 初始載入
         loadAllData();
         
-        // 每 30 秒更新一次
         setInterval(loadAllData, 30000);
     </script>
 </body>
