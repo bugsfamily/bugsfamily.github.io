@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Sheets 資料查看器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .update-info {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            background: #f5f5f5;
+            border: none;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover {
+            background: #e0e0e0;
+        }
+        
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 30px;
+            animation: fadeIn 0.5s;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Google Sheets 資料查看器</h1>
+            <div class="update-info">
+                最後更新: <span id="lastUpdate">載入中...</span> | 每 30 秒自動更新
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('boot_info')">Boot Info</button>
+            <button class="tab" onclick="switchTab('connect_info')">Connect Info</button>
+            <button class="tab" onclick="switchTab('mqtt_info')">MQTT Info</button>
+        </div>
+        
+        <div id="boot_info" class="tab-content active">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>載入 Boot Info 資料中...</div>
+            </div>
+        </div>
+        
+        <div id="connect_info" class="tab-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>載入 Connect Info 資料中...</div>
+            </div>
+        </div>
+        
+        <div id="mqtt_info" class="tab-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>載入 MQTT Info 資料中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SPREADSHEET_ID = '14QzHiUuTLZItsnDwETv2d2ax8_quBb4c3nPkGi2QZa0';
+        const SHEET_GIDS = {
+            boot_info: 0,  // 預設第一個 sheet
+            connect_info: 277291491,
+            mqtt_info: 1607453539      // 第三個 sheet
+        };
+        
+        let currentTab = 'boot_info';
+        
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+        
+        function updateTimestamp() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleString('zh-TW');
+        }
+        
+        function createTable(data, containerId) {
+            const container = document.getElementById(containerId);
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="error">無資料</div>';
+                return;
+            }
+            
+            const headers = data[0];
+            const rows = data.slice(1);
+            
+            let html = '<div class="table-container"><table>';
+            
+            // 標題列
+            html += '<thead><tr>';
+            headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += '</tr></thead>';
+            
+            // 資料列
+            html += '<tbody>';
+            rows.forEach(row => {
+                html += '<tr>';
+                headers.forEach((_, index) => {
+                    html += `<td>${row[index] || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            
+            container.innerHTML = html;
+        }
+        
+        async function loadSheetData(sheetName, gid) {
+            const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${gid}`;
+			
+            try {
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error('無法載入資料，請確認 Google Sheets 已設為「任何人都可以查看」');
+                }
+                
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    complete: function(results) {
+                        createTable(results.data, sheetName);
+                        updateTimestamp();
+                    },
+                    error: function(error) {
+                        document.getElementById(sheetName).innerHTML = 
+                            `<div class="error">解析錯誤: ${error.message}</div>`;
+                    }
+                });
+            } catch (error) {
+                document.getElementById(sheetName).innerHTML = 
+                    `<div class="error">${error.message}<br><br>
+                    請確認：<br>
+                    1. Google Sheets 的共享設定為「知道連結的任何人」都可以查看<br>
+                    2. 網址正確無誤<br>
+                    3. Sheet GID 正確</div>`;
+            }
+        }
+        
+        function loadAllData() {
+            Object.entries(SHEET_GIDS).forEach(([sheetName, gid]) => {
+                loadSheetData(sheetName, gid);
+            });
+        }
+        
+        // 初始載入
+        loadAllData();
+        
+        // 每 30 秒更新一次
+        setInterval(loadAllData, 30000);
+    </script>
+</body>
+</html>
