@@ -256,7 +256,13 @@
             const container = document.getElementById(containerId);
             
             if (!data || data.length === 0) {
-                container.innerHTML = '<div class="error">無資料</div>';
+                if (containerId === 'mqtt_info') {
+                    const filterDiv = container.querySelector('.filter-box');
+                    const filterHTML = filterDiv ? filterDiv.outerHTML : '';
+                    container.innerHTML = filterHTML + '<div class="error">無資料</div>';
+                } else {
+                    container.innerHTML = '<div class="error">無資料</div>';
+                }
                 return;
             }
             
@@ -289,7 +295,14 @@
             });
             html += '</tbody></table></div>';
             
-            container.innerHTML = html;
+            // 對於 mqtt_info，保留過濾器
+            if (containerId === 'mqtt_info') {
+                const filterDiv = container.querySelector('.filter-box');
+                const filterHTML = filterDiv ? filterDiv.outerHTML : '';
+                container.innerHTML = filterHTML + html;
+            } else {
+                container.innerHTML = html;
+            }
         }
         
         async function loadSheetData(sheetName, gid) {
@@ -339,16 +352,15 @@
             if (bootInfoData.length === 0) return;
             
             const select = document.getElementById('hostnameFilter');
+            if (!select) return; // 如果 select 不存在，直接返回
+            
             const currentValue = select.value;
             
             // 清空選項（保留"全部顯示"）
             select.innerHTML = '<option value="all">全部顯示</option>';
             
-            // 找到 hostname 欄位的索引
-            const headers = bootInfoData[0];
-            const hostnameIndex = headers.findIndex(h => h.toLowerCase().includes('hostname'));
-            
-            if (hostnameIndex === -1) return;
+            // hostname 是第一個欄位（索引 0）
+            const hostnameIndex = 0;
             
             // 收集所有唯一的 hostname
             const hostnames = new Set();
@@ -371,6 +383,8 @@
             if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
                 select.value = currentValue;
             }
+            
+            console.log('已載入 ' + hostnames.size + ' 個 hostname');
         }
         
         function filterMqttByHostname() {
@@ -379,21 +393,16 @@
             if (!mqttInfoData || mqttInfoData.length === 0) return;
             
             const container = document.getElementById('mqtt_info');
-            const headers = mqttInfoData[0];
             
-            // 找到 hostname 欄位的索引
-            const hostnameIndex = headers.findIndex(h => h.toLowerCase().includes('hostname'));
-            
-            if (hostnameIndex === -1) {
-                createTableFromData(mqttInfoData, container);
-                return;
-            }
+            // hostname 是第一個欄位（索引 0）
+            const hostnameIndex = 0;
             
             // 過濾數據
             let filteredData;
             if (selectedHostname === 'all') {
                 filteredData = mqttInfoData;
             } else {
+                const headers = mqttInfoData[0];
                 filteredData = [headers];
                 for (let i = 1; i < mqttInfoData.length; i++) {
                     if (mqttInfoData[i][hostnameIndex] === selectedHostname) {
@@ -403,6 +412,7 @@
             }
             
             createTableFromData(filteredData, container);
+            console.log('已過濾，顯示 ' + (filteredData.length - 1) + ' 筆資料');
         }
         
         function createTableFromData(data, container) {
