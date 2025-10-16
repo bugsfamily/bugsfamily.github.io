@@ -388,9 +388,15 @@
         }
         
         function filterMqttByHostname() {
-            selectedHostname = document.getElementById('hostnameFilter').value;
+            const select = document.getElementById('hostnameFilter');
+            if (!select) return;
             
-            if (!mqttInfoData || mqttInfoData.length === 0) return;
+            selectedHostname = select.value;
+            
+            if (!mqttInfoData || mqttInfoData.length === 0) {
+                console.log('MQTT 資料尚未載入');
+                return;
+            }
             
             const container = document.getElementById('mqtt_info');
             
@@ -401,6 +407,7 @@
             let filteredData;
             if (selectedHostname === 'all') {
                 filteredData = mqttInfoData;
+                console.log('顯示全部資料：' + (mqttInfoData.length - 1) + ' 筆');
             } else {
                 const headers = mqttInfoData[0];
                 filteredData = [headers];
@@ -409,10 +416,10 @@
                         filteredData.push(mqttInfoData[i]);
                     }
                 }
+                console.log('過濾 hostname: ' + selectedHostname + '，顯示 ' + (filteredData.length - 1) + ' 筆資料');
             }
             
             createTableFromData(filteredData, container);
-            console.log('已過濾，顯示 ' + (filteredData.length - 1) + ' 筆資料');
         }
         
         function createTableFromData(data, container) {
