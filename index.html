@@ -89,6 +89,28 @@
             to { opacity: 1; transform: translateY(0); }
         }
         
+        .filter-box {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        
+        .filter-box label {
+            font-weight: 600;
+            margin-right: 10px;
+            color: #2d7a4f;
+        }
+        
+        .filter-box select {
+            padding: 8px 15px;
+            border: 2px solid #2d7a4f;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            background: white;
+        }
+        
         .table-container {
             overflow-x: auto;
             border-radius: 8px;
@@ -185,6 +207,12 @@
         </div>
         
         <div id="mqtt_info" class="tab-content">
+            <div class="filter-box">
+                <label for="hostnameFilter">選擇 Hostname:</label>
+                <select id="hostnameFilter" onchange="filterMqttByHostname()">
+                    <option value="all">全部顯示</option>
+                </select>
+            </div>
             <div class="loading">
                 <div class="spinner"></div>
                 <div>載入 MQTT Info 資料中...</div>
@@ -201,6 +229,9 @@
         };
         
         let currentTab = 'boot_info';
+        let selectedHostname = 'all';
+        let bootInfoData = [];
+        let mqttInfoData = [];
         
         function switchTab(tabName) {
             currentTab = tabName;
@@ -227,6 +258,14 @@
             if (!data || data.length === 0) {
                 container.innerHTML = '<div class="error">無資料</div>';
                 return;
+            }
+            
+            // 保存原始數據
+            if (containerId === 'boot_info') {
+                bootInfoData = data;
+                updateHostnameFilter();
+            } else if (containerId === 'mqtt_info') {
+                mqttInfoData = data;
             }
             
             const headers = data[0];
@@ -269,6 +308,11 @@
                     complete: function(results) {
                         createTable(results.data, sheetName);
                         updateTimestamp();
+                        
+                        // 如果是 mqtt_info，應用過濾
+                        if (sheetName === 'mqtt_info' && selectedHostname !== 'all') {
+                            filterMqttByHostname();
+                        }
                     },
                     error: function(error) {
                         document.getElementById(sheetName).innerHTML = 
@@ -289,6 +333,112 @@
             Object.entries(SHEET_GIDS).forEach(([sheetName, gid]) => {
                 loadSheetData(sheetName, gid);
             });
+        }
+        
+        function updateHostnameFilter() {
+            if (bootInfoData.length === 0) return;
+            
+            const select = document.getElementById('hostnameFilter');
+            const currentValue = select.value;
+            
+            // 清空選項（保留"全部顯示"）
+            select.innerHTML = '<option value="all">全部顯示</option>';
+            
+            // 找到 hostname 欄位的索引
+            const headers = bootInfoData[0];
+            const hostnameIndex = headers.findIndex(h => h.toLowerCase().includes('hostname'));
+            
+            if (hostnameIndex === -1) return;
+            
+            // 收集所有唯一的 hostname
+            const hostnames = new Set();
+            for (let i = 1; i < bootInfoData.length; i++) {
+                const hostname = bootInfoData[i][hostnameIndex];
+                if (hostname && hostname.trim()) {
+                    hostnames.add(hostname.trim());
+                }
+            }
+            
+            // 添加選項
+            Array.from(hostnames).sort().forEach(hostname => {
+                const option = document.createElement('option');
+                option.value = hostname;
+                option.textContent = hostname;
+                select.appendChild(option);
+            });
+            
+            // 恢復之前的選擇
+            if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
+                select.value = currentValue;
+            }
+        }
+        
+        function filterMqttByHostname() {
+            selectedHostname = document.getElementById('hostnameFilter').value;
+            
+            if (!mqttInfoData || mqttInfoData.length === 0) return;
+            
+            const container = document.getElementById('mqtt_info');
+            const headers = mqttInfoData[0];
+            
+            // 找到 hostname 欄位的索引
+            const hostnameIndex = headers.findIndex(h => h.toLowerCase().includes('hostname'));
+            
+            if (hostnameIndex === -1) {
+                createTableFromData(mqttInfoData, container);
+                return;
+            }
+            
+            // 過濾數據
+            let filteredData;
+            if (selectedHostname === 'all') {
+                filteredData = mqttInfoData;
+            } else {
+                filteredData = [headers];
+                for (let i = 1; i < mqttInfoData.length; i++) {
+                    if (mqttInfoData[i][hostnameIndex] === selectedHostname) {
+                        filteredData.push(mqttInfoData[i]);
+                    }
+                }
+            }
+            
+            createTableFromData(filteredData, container);
+        }
+        
+        function createTableFromData(data, container) {
+            if (!data || data.length === 0) {
+                const filterDiv = container.querySelector('.filter-box');
+                container.innerHTML = '<div class="error">無資料</div>';
+                if (filterDiv) {
+                    container.insertBefore(filterDiv, container.firstChild);
+                }
+                return;
+            }
+            
+            const headers = data[0];
+            const rows = data.slice(1);
+            
+            let html = '<div class="table-container"><table>';
+            
+            html += '<thead><tr>';
+            headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += '</tr></thead>';
+            
+            html += '<tbody>';
+            rows.forEach(row => {
+                html += '<tr>';
+                headers.forEach((_, index) => {
+                    html += `<td>${row[index] || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            
+            const filterDiv = container.querySelector('.filter-box');
+            const filterHTML = filterDiv ? filterDiv.outerHTML : '';
+            container.innerHTML = filterHTML + html;
         }
         
         loadAllData();
