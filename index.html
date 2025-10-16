@@ -423,11 +423,21 @@
         }
         
         function createTableFromData(data, container) {
+            // 先保存過濾器的狀態
+            const filterDiv = container.querySelector('.filter-box');
+            const currentHostname = filterDiv ? document.getElementById('hostnameFilter').value : 'all';
+            
             if (!data || data.length === 0) {
-                const filterDiv = container.querySelector('.filter-box');
-                container.innerHTML = '<div class="error">無資料</div>';
+                const tableHTML = '<div class="error">無資料</div>';
                 if (filterDiv) {
-                    container.insertBefore(filterDiv, container.firstChild);
+                    // 只更新表格部分，保留過濾器
+                    const existingTable = container.querySelector('.table-container, .error, .loading');
+                    if (existingTable) {
+                        existingTable.remove();
+                    }
+                    container.appendChild(document.createRange().createContextualFragment(tableHTML));
+                } else {
+                    container.innerHTML = tableHTML;
                 }
                 return;
             }
@@ -453,9 +463,22 @@
             });
             html += '</tbody></table></div>';
             
-            const filterDiv = container.querySelector('.filter-box');
-            const filterHTML = filterDiv ? filterDiv.outerHTML : '';
-            container.innerHTML = filterHTML + html;
+            // 只更新表格部分，保留過濾器
+            if (filterDiv) {
+                const existingTable = container.querySelector('.table-container, .error, .loading');
+                if (existingTable) {
+                    existingTable.remove();
+                }
+                container.appendChild(document.createRange().createContextualFragment(html));
+                
+                // 恢復選擇的值
+                const select = document.getElementById('hostnameFilter');
+                if (select) {
+                    select.value = currentHostname;
+                }
+            } else {
+                container.innerHTML = html;
+            }
         }
         
         loadAllData();
